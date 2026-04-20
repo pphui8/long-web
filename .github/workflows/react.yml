@@ -78,8 +78,5 @@ jobs:
             docker run -d \
               --name long-web \
               --restart always \
-              -p 9001:9001 \
+              -p 9000:9000 \
               ghcr.io/${{ github.repository }}:latest
-
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
