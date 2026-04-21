@@ -9,7 +9,7 @@ function App() {
     setLoading(true)
     setResponse(null)
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:9001'
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://llm.pphui8.com/api'
       const res = await fetch(`${apiUrl}/ping`)
       const data = await res.text()
       setResponse(`Success: ${data}`)
@@ -22,10 +22,10 @@ function App() {
 
   return (
     <div className="container">
-      <h1>Frontend (Port 9000)</h1>
+      <h1>Frontend</h1>
       <div className="card">
         <button onClick={pingBackend} disabled={loading}>
-          {loading ? 'Pinging...' : 'Ping Backend (Port 9001)'}
+          {loading ? 'Pinging...' : 'Ping Backend (llm.pphui8.com/api)'}
         </button>
         {response && (
           <div className="response">
