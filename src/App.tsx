@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import './App.css'
+import { api, ApiError } from './api'
 
 function App() {
   const [username, setUsername] = useState('admin')
@@ -9,35 +10,20 @@ function App() {
   const [response, setResponse] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:9001'
-
   const handleLogin = async () => {
     setLoading(true)
     setResponse(null)
     try {
-      const res = await fetch(`${apiUrl}/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      })
-      const text = await res.text()
-      let data
-      try {
-        data = JSON.parse(text)
-      } catch (e) {
-        setResponse(`Response:\n${text}`)
-        return
-      }
-
-      if (res.ok) {
-        setAccessToken(data.access_token)
-        setRefreshToken(data.refresh_token)
-        setResponse('Login successful!')
-      } else {
-        setResponse(`Login failed: ${data.error || 'Unknown error'}\n\nFull response:\n${text}`)
-      }
+      const data = await api.login(username, password)
+      setAccessToken(data.access_token)
+      setRefreshToken(data.refresh_token)
+      setResponse('Login successful!')
     } catch (err) {
-      setResponse(`Error: ${err instanceof Error ? err.message : String(err)}`)
+      if (err instanceof ApiError) {
+        setResponse(`Login failed: ${err.message}\nStatus: ${err.status}\n\nFull response:\n${JSON.stringify(err.data, null, 2)}`)
+      } else {
+        setResponse(`Error: ${err instanceof Error ? err.message : String(err)}`)
+      }
     } finally {
       setLoading(false)
     }
@@ -51,18 +37,14 @@ function App() {
     setLoading(true)
     setResponse(null)
     try {
-      const res = await fetch(`${apiUrl}/resource`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      })
-      const text = await res.text()
-      try {
-        const data = JSON.parse(text)
-        setResponse(JSON.stringify(data, null, 2))
-      } catch (e) {
-        setResponse(text)
-      }
+      const data = await api.getResource(accessToken)
+      setResponse(JSON.stringify(data, null, 2))
     } catch (err) {
-      setResponse(`Error: ${err instanceof Error ? err.message : String(err)}`)
+      if (err instanceof ApiError) {
+        setResponse(`Request failed: ${err.message}\nStatus: ${err.status}\n\nFull response:\n${JSON.stringify(err.data, null, 2)}`)
+      } else {
+        setResponse(`Error: ${err instanceof Error ? err.message : String(err)}`)
+      }
     } finally {
       setLoading(false)
     }
@@ -76,26 +58,26 @@ function App() {
     setLoading(true)
     setResponse(null)
     try {
-      const res = await fetch(`${apiUrl}/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token: refreshToken }),
-      })
-      const text = await res.text()
-      let data
-      try {
-        data = JSON.parse(text)
-      } catch (e) {
-        setResponse(`Response (not JSON):\n${text}`)
-        return
-      }
-
-      if (res.ok) {
-        setAccessToken(data.access_token)
-        setResponse('Token refreshed successfully!')
+      const data = await api.refresh(refreshToken)
+      setAccessToken(data.access_token)
+      setResponse('Token refreshed successfully!')
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setResponse(`Refresh failed: ${err.message}\nStatus: ${err.status}\n\nFull response:\n${JSON.stringify(err.data, null, 2)}`)
       } else {
-        setResponse(`Refresh failed: ${data.error || 'Unknown error'}\n\nFull response:\n${text}`)
+        setResponse(`Error: ${err instanceof Error ? err.message : String(err)}`)
       }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handlePing = async () => {
+    setLoading(true)
+    setResponse(null)
+    try {
+      const data = await api.ping()
+      setResponse(JSON.stringify(data, null, 2))
     } catch (err) {
       setResponse(`Error: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
@@ -113,6 +95,12 @@ function App() {
     <div className="container">
       <h1>JWT Authentication Test</h1>
       <div className="card">
+        <div className="status-actions" style={{ marginBottom: '1rem' }}>
+          <button onClick={handlePing} disabled={loading}>
+            Ping Server
+          </button>
+        </div>
+
         {!accessToken ? (
           <div className="login-form">
             <input

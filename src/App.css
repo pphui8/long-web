@@ -5,6 +5,12 @@
   text-align: center;
 }
 
+.status-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
 .card {
   background: #f9f9f9;
   border-radius: 8px;
@@ -95,7 +101,7 @@ button:disabled {
   font-family: monospace;
   font-size: 0.75rem;
   resize: vertical;
-  background-color: #fff;
+  background-color: #0e0e0e;
 }
 
 .token-info p {
