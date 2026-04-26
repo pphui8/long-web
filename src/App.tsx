@@ -181,6 +181,11 @@ function App() {
                 <textarea readOnly value={accessToken} rows={3} className="token-textarea" />
               </div>
 
+              {/* <div className="debugger-section">
+                <label><strong>Encoded Token:</strong></label>
+                <textarea readOnly value={refreshtoken} rows={3} className="token-textarea" />
+              </div> */}
+
               {jwtParts && (
                 <>
                   <div className="debugger-grid">
