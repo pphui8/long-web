@@ -1,240 +1,224 @@
-import { useState, useMemo } from 'react'
-import './App.css'
-import { api, ApiError } from './api'
+import React, { useState } from 'react';
+import axios from 'axios';
+import api from './api';
+import './index.css';
 
-// Helper to decode Base64Url
-const decodeBase64Url = (str: string) => {
-  try {
-    const base64 = str.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split('')
-        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join('')
-    );
-    return JSON.parse(jsonPayload);
-  } catch {
-    return null;
-  }
-};
-
-// Helper to convert Base64Url to Hex
-const base64ToHex = (str: string) => {
-  try {
-    const raw = atob(str.replace(/-/g, '+').replace(/_/g, '/'));
-    let result = '';
-    for (let i = 0; i < raw.length; i++) {
-      const hex = raw.charCodeAt(i).toString(16);
-      result += (hex.length === 2 ? hex : '0' + hex);
-    }
-    return result.toUpperCase();
-  } catch {
-    return 'Invalid format';
-  }
-};
-
-function App() {
-  const [username, setUsername] = useState('admin')
-  const [password, setPassword] = useState('password123')
-  const [accessToken, setAccessToken] = useState<string | null>(null)
-  const [response, setResponse] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [secretKey, setSecretKey] = useState('')
-
-  const jwtParts = useMemo(() => {
-    if (!accessToken) return null;
-    const parts = accessToken.split('.');
-    if (parts.length !== 3) return null;
-    
-    return {
-      header: decodeBase64Url(parts[0]),
-      payload: decodeBase64Url(parts[1]),
-      signature: parts[2],
-      signatureHex: base64ToHex(parts[2])
-    };
-  }, [accessToken]);
-
-  const handleLogin = async () => {
-    setLoading(true)
-    setResponse(null)
-    try {
-      const data = await api.login(username, password)
-      setAccessToken(data.access_token)
-      setResponse('Login successful! Refresh token cookie set by server.')
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setResponse(`Login failed: ${err.message}\nStatus: ${err.status}\n\nFull response:\n${JSON.stringify(err.data, null, 2)}`)
-      } else {
-        setResponse(`Error: ${err instanceof Error ? err.message : String(err)}`)
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchResource = async () => {
-    if (!accessToken) {
-      setResponse('No access token! Login first.')
-      return
-    }
-    setLoading(true)
-    setResponse(null)
-    try {
-      const data = await api.getResource(accessToken)
-      setResponse(JSON.stringify(data, null, 2))
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setResponse(`Request failed: ${err.message}\nStatus: ${err.status}\n\nFull response:\n${JSON.stringify(err.data, null, 2)}`)
-      } else {
-        setResponse(`Error: ${err instanceof Error ? err.message : String(err)}`)
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleRefresh = async () => {
-    setLoading(true)
-    setResponse(null)
-    try {
-      const data = await api.refresh()
-      setAccessToken(data.access_token)
-      setResponse('Token refreshed successfully via HttpOnly cookie!')
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setResponse(`Refresh failed: ${err.message}\nStatus: ${err.status}\n\nFull response:\n${JSON.stringify(err.data, null, 2)}`)
-      } else {
-        setResponse(`Error: ${err instanceof Error ? err.message : String(err)}`)
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handlePing = async () => {
-    setLoading(true)
-    setResponse(null)
-    try {
-      const data = await api.ping()
-      setResponse(JSON.stringify(data, null, 2))
-    } catch (err) {
-      setResponse(`Error: ${err instanceof Error ? err.message : String(err)}`)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleLogout = () => {
-    setAccessToken(null)
-    setResponse('Logged out (Local state cleared).')
-  }
-
-  return (
-    <div className="container">
-      <h1>JWT Authentication Test</h1>
-      <div className="card">
-        <div className="status-actions" style={{ marginBottom: '1rem' }}>
-          <button onClick={handlePing} disabled={loading}>
-            Ping Server
-          </button>
-        </div>
-
-        {!accessToken ? (
-          <div className="login-form">
-            <input
-              type="text"
-              placeholder="Username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <button onClick={handleLogin} disabled={loading}>
-              {loading ? 'Logging in...' : 'Login'}
-            </button>
-          </div>
-        ) : (
-          <div className="actions">
-            <p>Logged in as: <strong>{username}</strong></p>
-            <div className="button-group">
-              <button onClick={fetchResource} disabled={loading}>
-                Fetch Protected Resource
-              </button>
-              <button onClick={handleRefresh} disabled={loading}>
-                Refresh Access Token
-              </button>
-              <button onClick={handleLogout}>Logout</button>
-            </div>
-            
-            <div className="jwt-debugger">
-              <h3>JWT Debugger (Access Token)</h3>
-              <p className="debug-intro">
-                The <strong>Access Token</strong> is short-lived and sent in the <code>Authorization: Bearer</code> header.
-              </p>
-              
-              <div className="debugger-section">
-                <label><strong>Encoded Token:</strong></label>
-                <textarea readOnly value={accessToken} rows={3} className="token-textarea" />
-              </div>
-
-              {/* <div className="debugger-section">
-                <label><strong>Encoded Token:</strong></label>
-                <textarea readOnly value={refreshtoken} rows={3} className="token-textarea" />
-              </div> */}
-
-              {jwtParts && (
-                <>
-                  <div className="debugger-grid">
-                    <div className="debugger-section">
-                      <label><strong>Header (Algorithm & Type)</strong></label>
-                      <pre className="json-block">{JSON.stringify(jwtParts.header, null, 2)}</pre>
-                    </div>
-                    
-                    <div className="debugger-section">
-                      <label><strong>Payload (Claims)</strong></label>
-                      <pre className="json-block">{JSON.stringify(jwtParts.payload, null, 2)}</pre>
-                    </div>
-                  </div>
-
-                  <div className="debugger-section">
-                    <label><strong>Signature (Hex Output)</strong></label>
-                    <div className="signature-input-group">
-                      <input
-                        type="password"
-                        placeholder="Enter Secret Key to see raw signature hex"
-                        value={secretKey}
-                        onChange={(e) => setSecretKey(e.target.value)}
-                        className="secret-input"
-                      />
-                    </div>
-                    {secretKey && (
-                      <div className="signature-display">
-                        <code className="hex-block">{jwtParts.signatureHex}</code>
-                        <p className="verification-hint">
-                          <small>Note: Signature bytes are shown in hex. In a real app, the backend verifies this using the secret key.</small>
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-
-        {response && (
-          <div className="response">
-            <strong>Response:</strong>
-            <pre>{response}</pre>
-          </div>
-        )}
-      </div>
-    </div>
-  )
+interface LogEntry {
+  timestamp: string;
+  type: 'info' | 'error' | 'success';
+  message: string;
 }
 
-export default App
+export default function App() {
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [username, setUsername] = useState('admin');
+  const [password, setPassword] = useState('password123');
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [pingData, setPingData] = useState<unknown>(null);
+  const [resourceData, setResourceData] = useState<unknown>(null);
+
+  const addLog = (message: string, type: 'info' | 'error' | 'success' = 'info') => {
+    const entry: LogEntry = {
+      timestamp: new Date().toLocaleTimeString(),
+      type,
+      message,
+    };
+    setLogs((prev) => [entry, ...prev]);
+  };
+
+  const parseJwt = (token: string) => {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(
+        window
+          .atob(base64)
+          .split('')
+          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+      return JSON.parse(jsonPayload);
+    } catch {
+      return { error: 'Failed to parse JWT' };
+    }
+  };
+
+  const handlePing = async () => {
+    addLog('Testing /ping...');
+    try {
+      const res = await api.get('/ping');
+      setPingData(res.data);
+      addLog(`Ping Success: ${JSON.stringify(res.data)}`, 'success');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      addLog(`Ping Error: ${errorMessage}`, 'error');
+    }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    addLog(`Attempting login for ${username}...`);
+    try {
+      const res = await api.post('/login', { username, password });
+      const token = res.data.access_token || res.data.token;
+      if (token) {
+        setAccessToken(token);
+        addLog('Login Success! Access token received.', 'success');
+      } else {
+        addLog('Login response missing access_token', 'error');
+      }
+    } catch (err: unknown) {
+      let message = 'Unknown error';
+      if (axios.isAxiosError(err)) {
+        message = err.response?.data?.error || err.message;
+      } else if (err instanceof Error) {
+        message = err.message;
+      }
+      addLog(`Login Error: ${message}`, 'error');
+    }
+  };
+
+  const handleRefresh = async () => {
+    addLog('Attempting /refresh (using httpOnly cookie)...');
+    try {
+      const res = await api.post('/refresh');
+      const token = res.data.access_token || res.data.token;
+      if (token) {
+        setAccessToken(token);
+        addLog('Refresh Success! New access token received.', 'success');
+      } else {
+        addLog('Refresh response missing access_token', 'error');
+      }
+    } catch (err: unknown) {
+      let message = 'Unknown error';
+      if (axios.isAxiosError(err)) {
+        message = err.response?.data?.error || err.message;
+      } else if (err instanceof Error) {
+        message = err.message;
+      }
+      addLog(`Refresh Error: ${message}`, 'error');
+    }
+  };
+
+  const handleFetchResource = async () => {
+    addLog('Attempting /resource access...');
+    if (!accessToken) {
+      addLog('No access token available. Login first.', 'error');
+      return;
+    }
+    try {
+      const res = await api.get('/resource', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      setResourceData(res.data);
+      addLog('Resource fetch success!', 'success');
+    } catch (err: unknown) {
+      let message = 'Unknown error';
+      if (axios.isAxiosError(err)) {
+        message = err.response?.data?.error || err.message;
+        if (err.response?.status === 401) {
+          addLog('Unauthorized! Token might be expired. Try Refresh.', 'info');
+        }
+      } else if (err instanceof Error) {
+        message = err.message;
+      }
+      addLog(`Resource Error: ${message}`, 'error');
+    }
+  };
+
+  const decodedToken = accessToken ? parseJwt(accessToken) : null;
+
+  return (
+    <div className="container" style={{ padding: '20px' }}>
+      <h1>JWT Auth Test Dashboard</h1>
+      
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+        {/* Actions Section */}
+        <div>
+          <section style={sectionStyle}>
+            <h2>1. Connectivity</h2>
+            <button onClick={handlePing}>Ping /api/ping</button>
+            {pingData != null && <pre style={jsonStyle}>{JSON.stringify(pingData, null, 2)}</pre>}
+          </section>
+
+          <section style={sectionStyle}>
+            <h2>2. Login</h2>
+            <form onSubmit={handleLogin}>
+              <div>
+                <label>Username: </label>
+                <input value={username} onChange={e => setUsername(e.target.value)} />
+              </div>
+              <div style={{ marginTop: '10px' }}>
+                <label>Password: </label>
+                <input type="password" value={password} onChange={e => setPassword(e.target.value)} />
+              </div>
+              <button type="submit" style={{ marginTop: '10px' }}>Login</button>
+            </form>
+          </section>
+
+          <section style={sectionStyle}>
+            <h2>3. Token Actions</h2>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={handleRefresh} style={{ backgroundColor: '#2ecc71' }}>Refresh Token</button>
+              <button onClick={() => setAccessToken(null)} style={{ backgroundColor: '#e74c3c' }}>Clear Access Token</button>
+            </div>
+          </section>
+
+          <section style={sectionStyle}>
+            <h2>4. Protected Resource</h2>
+            <button onClick={handleFetchResource} disabled={!accessToken}>Fetch /api/resource</button>
+            {resourceData != null && <pre style={jsonStyle}>{JSON.stringify(resourceData, null, 2)}</pre>}
+          </section>
+        </div>
+
+        {/* Data/Logs Section */}
+        <div>
+          <section style={sectionStyle}>
+            <h2>Access Token (State)</h2>
+            {accessToken ? (
+              <>
+                <div style={{ wordBreak: 'break-all', fontSize: '0.8rem', background: '#fff', padding: '10px', borderRadius: '4px', border: '1px solid #ddd' }}>
+                  {accessToken}
+                </div>
+                <h3>Decoded Payload:</h3>
+                <pre style={jsonStyle}>{JSON.stringify(decodedToken, null, 2)}</pre>
+              </>
+            ) : (
+              <p>No token in memory.</p>
+            )}
+          </section>
+
+          <section style={sectionStyle}>
+            <h2>Logs</h2>
+            <div style={{ height: '300px', overflowY: 'auto', background: '#2c3e50', color: '#ecf0f1', padding: '10px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '0.85rem' }}>
+              {logs.map((log, i) => (
+                <div key={i} style={{ marginBottom: '5px', color: log.type === 'error' ? '#ff7675' : log.type === 'success' ? '#55efc4' : '#ecf0f1' }}>
+                  [{log.timestamp}] {log.message}
+                </div>
+              ))}
+              {logs.length === 0 && <div>No logs yet...</div>}
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const sectionStyle: React.CSSProperties = {
+  background: '#eef2f3',
+  padding: '15px',
+  borderRadius: '8px',
+  marginBottom: '20px',
+  border: '1px solid #dcdde1'
+};
+
+const jsonStyle: React.CSSProperties = {
+  background: '#fff',
+  padding: '10px',
+  borderRadius: '4px',
+  border: '1px solid #ddd',
+  marginTop: '10px',
+  fontSize: '0.85rem',
+  overflowX: 'auto'
+};

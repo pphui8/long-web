@@ -9,29 +9,8 @@ export default defineConfig({
       '/api': {
         target: 'https://llm.pphui8.com',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '/api'),
-        configure: (proxy) => {
-          proxy.on('proxyRes', (proxyRes) => {
-            const setCookie = proxyRes.headers['set-cookie'];
-            if (setCookie) {
-              // Robustly strip Secure, Domain, and SameSite=None to allow localhost cookie storage
-              proxyRes.headers['set-cookie'] = setCookie.map((s) => {
-                return s
-                  .split(';')
-                  .map(part => part.trim())
-                  .filter(part => {
-                    const lower = part.toLowerCase();
-                    return !lower.startsWith('secure') && 
-                           !lower.startsWith('domain') &&
-                           !lower.startsWith('samesite') &&
-                           !lower.startsWith('partitioned');
-                  })
-                  .join('; ') + '; SameSite=Lax';
-              });
-            }
-          });
-        },
-      },
-    },
-  },
+        secure: true,
+      }
+    }
+  }
 })
