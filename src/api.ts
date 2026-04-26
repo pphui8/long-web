@@ -2,7 +2,6 @@ const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 export interface LoginResponse {
   access_token: string;
-  refresh_token: string;
 }
 
 export interface RefreshTokenResponse {
@@ -23,8 +22,13 @@ export interface ErrorResponse {
 }
 
 export class ApiError extends Error {
-  constructor(public status: number, public data: ErrorResponse) {
+  public status: number;
+  public data: ErrorResponse;
+
+  constructor(status: number, data: ErrorResponse) {
     super(data.error || `HTTP error ${status}`);
+    this.status = status;
+    this.data = data;
     this.name = 'ApiError';
   }
 }
@@ -36,6 +40,8 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       'Content-Type': 'application/json',
       ...options.headers,
     },
+    // Required to handle HttpOnly cookies for refresh tokens
+    credentials: 'include',
   });
 
   const text = await response.text();
@@ -57,13 +63,12 @@ export const api = {
   login: (username: string, password: string) =>
     request<LoginResponse>('/login', {
       method: 'POST',
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ Username: username, Password: password }),
     }),
 
-  refresh: (refreshToken: string) =>
+  refresh: () =>
     request<RefreshTokenResponse>('/refresh', {
       method: 'POST',
-      body: JSON.stringify({ refresh_token: refreshToken }),
     }),
 
   ping: () => request<PingResponse>('/ping'),
