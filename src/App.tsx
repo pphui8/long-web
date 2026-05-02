@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import api from './api';
+import api, { setAccessToken, subscribeToTokenUpdates } from './api';
 import './index.css';
 
 interface LogEntry {
@@ -10,21 +10,62 @@ interface LogEntry {
 }
 
 export default function App() {
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [accessToken, setAccessTokenState] = useState<string | null>(null);
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('password123');
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [pingData, setPingData] = useState<unknown>(null);
   const [resourceData, setResourceData] = useState<unknown>(null);
 
-  const addLog = (message: string, type: 'info' | 'error' | 'success' = 'info') => {
+  const addLog = useCallback((message: string, type: 'info' | 'error' | 'success' = 'info') => {
     const entry: LogEntry = {
       timestamp: new Date().toLocaleTimeString(),
       type,
       message,
     };
     setLogs((prev) => [entry, ...prev]);
-  };
+  }, []);
+
+  const handleRefresh = useCallback(async () => {
+    // Wrap state updates in setTimeout if they are called synchronously in useEffect
+    setTimeout(() => addLog('Attempting /refresh (using httpOnly cookie)...'), 0);
+    try {
+      const res = await api.post('/refresh');
+      const token = res.data.access_token || res.data.token;
+      if (token) {
+        setAccessToken(token);
+        addLog('Refresh Success! New access token received.', 'success');
+      } else {
+        addLog('Refresh response missing access_token', 'error');
+      }
+    } catch (err: unknown) {
+      let message = 'Unknown error';
+      if (axios.isAxiosError(err)) {
+        message = err.response?.data?.error || err.message;
+        if (err.response?.status === 401) {
+          addLog('Session expired or not found. Please login.', 'info');
+        } else {
+          addLog(`Refresh Error: ${message}`, 'error');
+        }
+      } else if (err instanceof Error) {
+        message = err.message;
+        addLog(`Refresh Error: ${message}`, 'error');
+      }
+    }
+  }, [addLog]);
+
+  // Sync React state with api.ts token
+  useEffect(() => {
+    subscribeToTokenUpdates((token) => {
+      setAccessTokenState(token);
+    });
+  }, []);
+
+  // Auto-login on mount
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    handleRefresh();
+  }, [handleRefresh]);
 
   const parseJwt = (token: string) => {
     try {
@@ -55,7 +96,7 @@ export default function App() {
     }
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     addLog(`Attempting login for ${username}...`);
     try {
@@ -78,47 +119,17 @@ export default function App() {
     }
   };
 
-  const handleRefresh = async () => {
-    addLog('Attempting /refresh (using httpOnly cookie)...');
-    try {
-      const res = await api.post('/refresh');
-      const token = res.data.access_token || res.data.token;
-      if (token) {
-        setAccessToken(token);
-        addLog('Refresh Success! New access token received.', 'success');
-      } else {
-        addLog('Refresh response missing access_token', 'error');
-      }
-    } catch (err: unknown) {
-      let message = 'Unknown error';
-      if (axios.isAxiosError(err)) {
-        message = err.response?.data?.error || err.message;
-      } else if (err instanceof Error) {
-        message = err.message;
-      }
-      addLog(`Refresh Error: ${message}`, 'error');
-    }
-  };
-
   const handleFetchResource = async () => {
     addLog('Attempting /resource access...');
-    if (!accessToken) {
-      addLog('No access token available. Login first.', 'error');
-      return;
-    }
     try {
-      const res = await api.get('/resource', {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
+      // Interceptor will automatically add Authorization header if token exists
+      const res = await api.get('/resource');
       setResourceData(res.data);
       addLog('Resource fetch success!', 'success');
     } catch (err: unknown) {
       let message = 'Unknown error';
       if (axios.isAxiosError(err)) {
         message = err.response?.data?.error || err.message;
-        if (err.response?.status === 401) {
-          addLog('Unauthorized! Token might be expired. Try Refresh.', 'info');
-        }
       } else if (err instanceof Error) {
         message = err.message;
       }
