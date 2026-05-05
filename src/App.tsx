@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import api, { setAccessToken, subscribeToTokenUpdates } from './api';
+import api, { subscribeToTokenUpdates } from './api';
+import authService from './authService';
 import './index.css';
 
 interface LogEntry {
@@ -27,16 +28,11 @@ export default function App() {
   }, []);
 
   const handleRefresh = useCallback(async () => {
-    // Wrap state updates in setTimeout if they are called synchronously in useEffect
-    setTimeout(() => addLog('Attempting /refresh (using httpOnly cookie)...'), 0);
+    setTimeout(() => addLog('Attempting /refresh via AuthService...'), 0);
     try {
-      const res = await api.post('/refresh');
-      const token = res.data.access_token || res.data.token;
+      const token = await authService.refresh();
       if (token) {
-        setAccessToken(token);
         addLog('Refresh Success! New access token received.', 'success');
-      } else {
-        addLog('Refresh response missing access_token', 'error');
       }
     } catch (err: unknown) {
       let message = 'Unknown error';
@@ -60,12 +56,6 @@ export default function App() {
       setAccessTokenState(token);
     });
   }, []);
-
-  // Auto-login on mount
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    handleRefresh();
-  }, [handleRefresh]);
 
   const parseJwt = (token: string) => {
     try {
@@ -98,12 +88,10 @@ export default function App() {
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    addLog(`Attempting login for ${username}...`);
+    addLog(`Attempting login for ${username} via AuthService...`);
     try {
-      const res = await api.post('/login', { username, password });
-      const token = res.data.access_token || res.data.token;
+      const token = await authService.login(username, password);
       if (token) {
-        setAccessToken(token);
         addLog('Login Success! Access token received.', 'success');
       } else {
         addLog('Login response missing access_token', 'error');
@@ -122,7 +110,6 @@ export default function App() {
   const handleFetchResource = async () => {
     addLog('Attempting /resource access...');
     try {
-      // Interceptor will automatically add Authorization header if token exists
       const res = await api.get('/resource');
       setResourceData(res.data);
       addLog('Resource fetch success!', 'success');
@@ -171,7 +158,7 @@ export default function App() {
             <h2>3. Token Actions</h2>
             <div style={{ display: 'flex', gap: '10px' }}>
               <button onClick={handleRefresh} style={{ backgroundColor: '#2ecc71' }}>Refresh Token</button>
-              <button onClick={() => setAccessToken(null)} style={{ backgroundColor: '#e74c3c' }}>Clear Access Token</button>
+              <button onClick={() => authService.logout()} style={{ backgroundColor: '#e74c3c' }}>Clear Access Token</button>
             </div>
           </section>
 
