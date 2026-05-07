@@ -15,6 +15,7 @@ export const setAccessToken = (token: string | null) => {
 
 export const subscribeToTokenUpdates = (callback: (token: string | null) => void) => {
   subscribers.push(callback);
+  callback(accessToken);
 };
 
 api.interceptors.request.use(
