@@ -7,13 +7,15 @@ interface ChatWindowProps {
   onSendMessage: (content: string) => void;
   isLoading: boolean;
   title: string;
+  onToggleSidebar?: () => void;
 }
 
 export const ChatWindow: React.FC<ChatWindowProps> = ({
   messages,
   onSendMessage,
   isLoading,
-  title
+  title,
+  onToggleSidebar
 }) => {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -37,6 +39,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   return (
     <div className="chat-window">
       <div className="chat-header">
+        <button className="sidebar-toggle" onClick={onToggleSidebar}>
+          ☰
+        </button>
         <h2>{title}</h2>
       </div>
       

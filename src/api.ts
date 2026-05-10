@@ -1,6 +1,7 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 
-let accessToken: string | null = null;
+export const TOKEN_KEY = 'auth_token';
+let accessToken: string | null = localStorage.getItem(TOKEN_KEY);
 const subscribers: ((token: string | null) => void)[] = [];
 
 const api = axios.create({
@@ -10,6 +11,11 @@ const api = axios.create({
 
 export const setAccessToken = (token: string | null) => {
   accessToken = token;
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token);
+  } else {
+    localStorage.removeItem(TOKEN_KEY);
+  }
   subscribers.forEach((callback) => callback(token));
 };
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { subscribeToTokenUpdates } from './api';
+import { authService } from './authService';
 import { Login } from './components/Login';
 import { ChatLayout } from './components/Chat';
 import './index.css';
@@ -7,16 +8,23 @@ import './index.css';
 export default function App() {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
-  const [username, setUsername] = useState('Admin User');
+  const [username, setUsername] = useState('User');
 
   useEffect(() => {
-    // Initial sync with token from api.ts (which might have been restored or set elsewhere)
+    // Initial sync with token from api.ts (which was restored from localStorage)
     subscribeToTokenUpdates((token) => {
       setAccessToken(token);
       setIsInitializing(false);
-      // In a real app, you might decode the token here to get the actual username
+      
       if (token) {
-        setUsername('Admin User'); // Placeholder
+        try {
+          // Attempt to extract username from JWT
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          setUsername(payload.username || payload.sub || 'User');
+        } catch (e) {
+          console.error('Failed to parse token for username', e);
+          setUsername('User');
+        }
       }
     });
   }, []);

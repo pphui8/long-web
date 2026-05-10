@@ -1,4 +1,4 @@
-import api, { setAccessToken, subscribeToTokenUpdates } from './api';
+import api, { setAccessToken, subscribeToTokenUpdates, TOKEN_KEY } from './api';
 
 export interface AuthPayload {
   username: string;
@@ -20,6 +20,13 @@ class AuthService {
         this.stopAutoRefresh();
       }
     });
+
+    // Resume session if token exists
+    const initialToken = localStorage.getItem(TOKEN_KEY);
+    if (initialToken) {
+      this.isAutoRefreshEnabled = true;
+      this.scheduleRefresh(initialToken);
+    }
   }
 
   async login(username: string, password: string): Promise<string | null> {

@@ -24,6 +24,7 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({ username }) => {
     ]
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const activeMessages = messages[activeId] || [];
 
@@ -75,6 +76,11 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({ username }) => {
     }
   };
 
+  const handleSelectConversation = (id: string) => {
+    setActiveId(id);
+    setIsSidebarOpen(false);
+  };
+
   const handleNewChat = () => {
     const newId = Date.now().toString();
     const newConv: Conversation = {
@@ -85,18 +91,27 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({ username }) => {
     setConversations([newConv, ...conversations]);
     setActiveId(newId);
     setMessages({ ...messages, [newId]: [] });
+    setIsSidebarOpen(false);
   };
 
   const activeTitle = conversations.find(c => c.id === activeId)?.title || 'Chat';
 
   return (
-    <div className="chat-layout">
+    <div className={`chat-layout ${isSidebarOpen ? 'sidebar-open' : ''}`}>
+      {isSidebarOpen && (
+        <div 
+          className="sidebar-overlay" 
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
       <Sidebar
         conversations={conversations}
         activeId={activeId}
-        onSelectConversation={setActiveId}
+        onSelectConversation={handleSelectConversation}
         onNewChat={handleNewChat}
         username={username}
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
       />
       <main className="chat-main">
         <ChatWindow
@@ -104,6 +119,7 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({ username }) => {
           onSendMessage={handleSendMessage}
           isLoading={isLoading}
           title={activeTitle}
+          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         />
       </main>
     </div>

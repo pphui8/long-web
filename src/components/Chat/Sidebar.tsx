@@ -8,6 +8,8 @@ interface SidebarProps {
   onSelectConversation: (id: string) => void;
   onNewChat: () => void;
   username: string;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -15,13 +17,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeId,
   onSelectConversation,
   onNewChat,
-  username
+  username,
+  isOpen,
+  onClose
 }) => {
   return (
-    <div className="sidebar">
+    <div className={`sidebar ${isOpen ? 'open' : ''}`}>
       <div className="sidebar-header">
         <button className="new-chat-btn" onClick={onNewChat}>
           <span>+</span> New Chat
+        </button>
+        <button className="close-sidebar-btn" onClick={onClose}>
+          ✕
         </button>
       </div>
       
