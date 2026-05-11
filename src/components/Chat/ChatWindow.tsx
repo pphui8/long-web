@@ -37,34 +37,38 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   };
 
   return (
-    <div className="chat-window">
-      <div className="chat-header">
-        <button className="sidebar-toggle" onClick={onToggleSidebar}>
+    <div className="flex flex-col h-full">
+      <header className="px-6 py-4 border-b border-border-color flex items-center gap-4 bg-white/80 backdrop-blur-md sticky top-0 z-10">
+        <button 
+          className="md:hidden p-2 text-text-main text-2xl cursor-pointer hover:bg-slate-100 rounded-md transition-colors" 
+          onClick={onToggleSidebar}
+        >
           ☰
         </button>
-        <h2>{title}</h2>
-      </div>
+        <h2 className="text-lg font-semibold truncate text-slate-800">{title}</h2>
+      </header>
       
-      <div className="messages-container">
+      <div className="flex-1 overflow-y-auto p-6 md:p-8 flex flex-col gap-6">
         {messages.length === 0 ? (
-          <div className="empty-state">
-            <h3>Start a new conversation</h3>
+          <div className="flex-1 flex flex-col items-center justify-center text-text-muted text-center space-y-2">
+            <h3 className="text-xl font-medium text-slate-600">Start a new conversation</h3>
             <p>Type a message below to begin chatting with the AI.</p>
           </div>
         ) : (
           messages.map((msg) => <MessageItem key={msg.id} message={msg} />)
         )}
         {isLoading && (
-          <div className="loading-indicator">
+          <div className="p-4">
             <div className="dot-typing"></div>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
       
-      <div className="input-area">
-        <form onSubmit={handleSubmit} className="input-form">
+      <div className="p-6 md:p-8 border-t border-border-color bg-white">
+        <form onSubmit={handleSubmit} className="flex gap-4 max-w-4xl mx-auto">
           <textarea
+            className="flex-1 px-4 py-3 border border-border-color rounded-xl resize-none text-base focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 h-14 max-h-48 transition-all"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Type your message..."
@@ -75,11 +79,15 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               }
             }}
           />
-          <button type="submit" disabled={!input.trim() || isLoading}>
+          <button 
+            type="submit" 
+            disabled={!input.trim() || isLoading}
+            className="px-8 bg-primary hover:bg-primary-hover text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm active:scale-95"
+          >
             Send
           </button>
         </form>
-        <div className="input-footer">
+        <div className="text-center text-xs text-text-muted mt-4">
           LLM responses can be inaccurate. Verify important information.
         </div>
       </div>

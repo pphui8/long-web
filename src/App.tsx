@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { subscribeToTokenUpdates } from './api';
-import { authService } from './authService';
 import { Login } from './components/Login';
 import { ChatLayout } from './components/Chat';
 import './index.css';
@@ -31,7 +30,7 @@ export default function App() {
 
   if (isInitializing) {
     return (
-      <div className="loading-screen">
+      <div className="h-screen flex flex-col items-center justify-center gap-4">
         <div className="spinner"></div>
         <p>Initializing application...</p>
       </div>
@@ -39,7 +38,7 @@ export default function App() {
   }
 
   return (
-    <div className="app-container">
+    <div className="h-full flex flex-col">
       {accessToken ? (
         <ChatLayout username={username} />
       ) : (

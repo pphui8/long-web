@@ -37,33 +37,43 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div className="login-container">
-      <div className="login-card">
-        <h1>Welcome Back</h1>
-        <p>Please sign in to your account</p>
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label>Username</label>
+    <div className="h-screen flex items-center justify-center bg-linear-to-br from-slate-50 to-slate-200 p-4">
+      <div className="bg-white p-10 rounded-2xl shadow-xl w-full max-w-md">
+        <h1 className="text-3xl font-bold mb-2 text-center text-slate-900">Welcome Back</h1>
+        <p className="text-text-muted text-center mb-8">Please sign in to your account</p>
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-slate-700">Username</label>
             <input
               type="text"
+              className="w-full px-4 py-3 border border-border-color rounded-lg text-base transition-colors focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="Enter your username"
               required
             />
           </div>
-          <div className="form-group">
-            <label>Password</label>
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-slate-700">Password</label>
             <input
               type="password"
+              className="w-full px-4 py-3 border border-border-color rounded-lg text-base transition-colors focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your password"
               required
             />
           </div>
-          {error && <div className="error-message">{error}</div>}
-          <button type="submit" disabled={isLoading}>
+          {error && (
+            <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm border border-red-100">
+              {error}
+            </div>
+          )}
+          <button 
+            type="submit" 
+            disabled={isLoading}
+            className="w-full py-3 bg-primary hover:bg-primary-hover text-white rounded-lg text-base font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          >
             {isLoading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>

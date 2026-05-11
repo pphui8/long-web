@@ -9,12 +9,12 @@ interface ChatLayoutProps {
 }
 
 export const ChatLayout: React.FC<ChatLayoutProps> = ({ username }) => {
-  const [conversations, setConversations] = useState<Conversation[]>([
+  const [conversations, setConversations] = useState<Conversation[]>(() => [
     { id: '1', title: 'Getting Started', updatedAt: Date.now() },
     { id: '2', title: 'Domain Specific Query', updatedAt: Date.now() - 86400000 },
   ]);
   const [activeId, setActiveId] = useState<string>('1');
-  const [messages, setMessages] = useState<Record<string, Message[]>>({
+  const [messages, setMessages] = useState<Record<string, Message[]>>(() => ({
     '1': [
       { id: 'm1', role: 'assistant', content: 'Hello! I am your domain-specific AI assistant. How can I help you today?', timestamp: Date.now() - 100000 },
     ],
@@ -22,7 +22,7 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({ username }) => {
       { id: 'm2', role: 'user', content: 'What are the main functions of this domain?', timestamp: Date.now() - 90000000 },
       { id: 'm3', role: 'assistant', content: 'This domain specializes in long-form content analysis and generation.', timestamp: Date.now() - 89900000 },
     ]
-  });
+  }));
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -97,10 +97,10 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({ username }) => {
   const activeTitle = conversations.find(c => c.id === activeId)?.title || 'Chat';
 
   return (
-    <div className={`chat-layout ${isSidebarOpen ? 'sidebar-open' : ''}`}>
+    <div className="flex h-screen w-full relative">
       {isSidebarOpen && (
         <div 
-          className="sidebar-overlay" 
+          className="md:hidden absolute inset-0 bg-black/50 z-40" 
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
@@ -113,7 +113,7 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({ username }) => {
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />
-      <main className="chat-main">
+      <main className="flex-1 flex flex-col bg-white min-w-0">
         <ChatWindow
           messages={activeMessages}
           onSendMessage={handleSendMessage}
