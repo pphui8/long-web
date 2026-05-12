@@ -1,36 +1,64 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { ChatWindow } from './ChatWindow';
 import type { Message, Conversation } from '../../types';
-import api from '../../api';
+import chatService from '../../chatService';
 
 interface ChatLayoutProps {
   username: string;
 }
 
 export const ChatLayout: React.FC<ChatLayoutProps> = ({ username }) => {
-  const [conversations, setConversations] = useState<Conversation[]>(() => [
-    { id: '1', title: 'Getting Started', updatedAt: Date.now() },
-    { id: '2', title: 'Domain Specific Query', updatedAt: Date.now() - 86400000 },
-  ]);
-  const [activeId, setActiveId] = useState<string>('1');
-  const [messages, setMessages] = useState<Record<string, Message[]>>(() => ({
-    '1': [
-      { id: 'm1', role: 'assistant', content: 'Hello! I am your domain-specific AI assistant. How can I help you today?', timestamp: Date.now() - 100000 },
-    ],
-    '2': [
-      { id: 'm2', role: 'user', content: 'What are the main functions of this domain?', timestamp: Date.now() - 90000000 },
-      { id: 'm3', role: 'assistant', content: 'This domain specializes in long-form content analysis and generation.', timestamp: Date.now() - 89900000 },
-    ]
-  }));
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Record<string, Message[]>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  const activeMessages = messages[activeId] || [];
+  // Fetch conversations on mount
+  useEffect(() => {
+    const fetchConversations = async () => {
+      try {
+        const data = await chatService.getConversations();
+        setConversations(data);
+        if (data.length > 0 && !activeId) {
+          setActiveId(data[0].id);
+        }
+      } catch (err) {
+        console.error('Failed to fetch conversations:', err);
+      }
+    };
+    fetchConversations();
+  }, []);
+
+  // Fetch messages when activeId changes
+  useEffect(() => {
+    if (!activeId || messages[activeId]) return;
+
+    const fetchMessages = async () => {
+      try {
+        const data = await chatService.getMessages(activeId);
+        setMessages(prev => ({ ...prev, [activeId]: data }));
+      } catch (err) {
+        console.error('Failed to fetch messages:', err);
+      }
+    };
+
+    // If it's a numeric ID (from backend), fetch it. 
+    // If it's a temporary string ID (from handleNewChat), don't fetch.
+    if (!isNaN(Number(activeId))) {
+      fetchMessages();
+    }
+  }, [activeId]);
+
+  const activeMessages = activeId ? (messages[activeId] || []) : [];
 
   const handleSendMessage = async (content: string) => {
+    if (!activeId) return;
+
+    const tempId = Date.now().toString();
     const newMessage: Message = {
-      id: Date.now().toString(),
+      id: tempId,
       role: 'user',
       content,
       timestamp: Date.now(),
@@ -44,21 +72,41 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({ username }) => {
     setIsLoading(true);
 
     try {
-      // Mimic LLM API call
-      // In a real app, you would call api.post('/chat', { message: content, conversationId: activeId })
-      const res = await api.get('/ping'); // Just to verify connectivity and JWT
+      // If activeId is not a number, it's a new conversation
+      const cid = !isNaN(Number(activeId)) ? activeId : undefined;
+      const res = await chatService.sendMessage(content, cid);
       
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: `I received your message: "${content}". This is a placeholder response from the domain-specific LLM. (Backend connectivity verified: ${res.status === 200 ? 'OK' : 'Error'})`,
+        content: res.message,
         timestamp: Date.now(),
       };
 
+      // Update messages for the current activeId
       setMessages(prev => ({
         ...prev,
         [activeId]: [...(prev[activeId] || []), assistantMessage]
       }));
+
+      // If it was a new conversation, update the activeId and conversations list
+      if (!cid && res.conversation_id) {
+        const newConvId = res.conversation_id.toString();
+        
+        // Move messages from temp activeId to the new real ID
+        setMessages(prev => {
+          const newMsgs = { ...prev };
+          newMsgs[newConvId] = newMsgs[activeId];
+          delete newMsgs[activeId];
+          return newMsgs;
+        });
+
+        setActiveId(newConvId);
+        
+        // Refresh conversations to get the title etc.
+        const updatedConvs = await chatService.getConversations();
+        setConversations(updatedConvs);
+      }
     } catch (err) {
       console.error('Failed to send message:', err);
       const errorMessage: Message = {
@@ -82,12 +130,14 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({ username }) => {
   };
 
   const handleNewChat = () => {
-    const newId = Date.now().toString();
+    const newId = `new-${Date.now()}`;
     const newConv: Conversation = {
       id: newId,
       title: 'New Conversation',
       updatedAt: Date.now(),
     };
+    // Don't add to conversations list yet, wait for first message? 
+    // Or add it as a placeholder.
     setConversations([newConv, ...conversations]);
     setActiveId(newId);
     setMessages({ ...messages, [newId]: [] });
@@ -106,7 +156,7 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({ username }) => {
       )}
       <Sidebar
         conversations={conversations}
-        activeId={activeId}
+        activeId={activeId || undefined}
         onSelectConversation={handleSelectConversation}
         onNewChat={handleNewChat}
         username={username}
