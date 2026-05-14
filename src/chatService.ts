@@ -30,6 +30,10 @@ const chatService = {
     const response = await api.post<LLMResponse>('/gemini', data);
     return response.data;
   },
+
+  async deleteConversation(conversationId: string | number): Promise<void> {
+    await api.delete(`/conversations/${conversationId}/delete`);
+  },
 };
 
 export default chatService;

@@ -42,7 +42,7 @@ export default function App() {
       {accessToken ? (
         <ChatLayout username={username} />
       ) : (
-        <Login onLoginSuccess={(token) => setAccessToken(token)} />
+        <Login />
       )}
     </div>
   );

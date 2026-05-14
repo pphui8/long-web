@@ -2,11 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import authService from '../authService';
 
-interface LoginProps {
-  onLoginSuccess: (token: string) => void;
-}
-
-export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
+export const Login: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -17,12 +13,12 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     setIsLoading(true);
     setError(null);
     try {
-      const token = await authService.login(username, password);
-      if (token) {
-        onLoginSuccess(token);
-      } else {
+      const token = await authService.login(username.trim(), password.trim());
+      if (!token) {
         setError('Login failed: No token received');
       }
+      // Note: No need to call onLoginSuccess because authService.login 
+      // already triggers the state update via api.ts subscribers.
     } catch (err: unknown) {
       let message = 'An error occurred during login';
       if (axios.isAxiosError(err)) {

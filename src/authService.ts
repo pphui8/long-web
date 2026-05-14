@@ -49,11 +49,9 @@ class AuthService {
 
   async refresh(): Promise<string | null> {
     try {
-      // Note: baseURL in api.ts is '/api', so this calls '/api/refresh'
       const res = await api.post('/refresh');
       const token = res.data.access_token || res.data.token;
       if (token) {
-        // If we are refreshing, we likely want auto-refresh enabled/re-enabled
         this.isAutoRefreshEnabled = true;
         this.handleNewToken(token);
         return token;

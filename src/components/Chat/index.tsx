@@ -129,6 +129,41 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({ username }) => {
     setIsSidebarOpen(false);
   };
 
+  const handleDeleteConversation = async (id: string) => {
+    try {
+      // If it's a numeric ID (backend), call the API
+      if (!isNaN(Number(id))) {
+        await chatService.deleteConversation(id);
+      }
+      
+      // Update conversations first and determine new active ID if needed
+      setConversations(prev => {
+        const newConvs = prev.filter(c => c.id !== id);
+        
+        // If we deleted the active conversation, pick a new one
+        if (activeId === id) {
+          if (newConvs.length > 0) {
+            setActiveId(newConvs[0].id);
+          } else {
+            setActiveId(null);
+          }
+        }
+        
+        return newConvs;
+      });
+
+      // Clean up messages
+      setMessages(prev => {
+        const newMsgs = { ...prev };
+        delete newMsgs[id];
+        return newMsgs;
+      });
+    } catch (err) {
+      console.error('Failed to delete conversation:', err);
+      alert('Failed to delete conversation. Please try again.');
+    }
+  };
+
   const handleNewChat = () => {
     const newId = `new-${Date.now()}`;
     const newConv: Conversation = {
@@ -158,6 +193,7 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({ username }) => {
         conversations={conversations}
         activeId={activeId || undefined}
         onSelectConversation={handleSelectConversation}
+        onDeleteConversation={handleDeleteConversation}
         onNewChat={handleNewChat}
         username={username}
         isOpen={isSidebarOpen}
