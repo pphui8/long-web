@@ -32,7 +32,7 @@ const chatService = {
   },
 
   async deleteConversation(conversationId: string | number): Promise<void> {
-    await api.delete(`/conversations/${conversationId}/delete`);
+    await api.get(`/conversations/${conversationId}/delete`);
   },
 };
 
