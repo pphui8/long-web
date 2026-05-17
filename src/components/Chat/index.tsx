@@ -56,9 +56,9 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({ username }) => {
   const handleSendMessage = async (content: string) => {
     if (!activeId) return;
 
-    const tempId = Date.now().toString();
-    const newMessage: Message = {
-      id: tempId,
+    const tempUserId = Date.now().toString();
+    const newUserMessage: Message = {
+      id: tempUserId,
       role: 'user',
       content,
       timestamp: Date.now(),
@@ -66,60 +66,78 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({ username }) => {
 
     setMessages(prev => ({
       ...prev,
-      [activeId]: [...(prev[activeId] || []), newMessage]
+      [activeId]: [...(prev[activeId] || []), newUserMessage]
     }));
 
     setIsLoading(true);
 
+    const assistantMessageId = (Date.now() + 1).toString();
+    const initialAssistantMessage: Message = {
+      id: assistantMessageId,
+      role: 'assistant',
+      content: '',
+      timestamp: Date.now(),
+    };
+
+    setMessages(prev => ({
+      ...prev,
+      [activeId]: [...(prev[activeId] || []), initialAssistantMessage]
+    }));
+
     try {
-      // If activeId is not a number, it's a new conversation
       const cid = !isNaN(Number(activeId)) ? activeId : undefined;
-      const res = await chatService.sendMessage(content, cid);
       
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: res.message,
-        timestamp: Date.now(),
-      };
+      await chatService.streamMessage(content, cid, {
+        onChunk: (chunk) => {
+          setMessages(prev => {
+            const currentMessages = prev[activeId] || [];
+            return {
+              ...prev,
+              [activeId]: currentMessages.map(msg => 
+                msg.id === assistantMessageId 
+                  ? { ...msg, content: msg.content + chunk }
+                  : msg
+              )
+            };
+          });
+        },
+        onDone: async (newConversationId) => {
+          setIsLoading(false);
+          
+          if (!cid && newConversationId) {
+            const newConvId = newConversationId.toString();
+            
+            setMessages(prev => {
+              const newMsgs = { ...prev };
+              newMsgs[newConvId] = newMsgs[activeId];
+              delete newMsgs[activeId];
+              return newMsgs;
+            });
 
-      // Update messages for the current activeId
-      setMessages(prev => ({
-        ...prev,
-        [activeId]: [...(prev[activeId] || []), assistantMessage]
-      }));
-
-      // If it was a new conversation, update the activeId and conversations list
-      if (!cid && res.conversation_id) {
-        const newConvId = res.conversation_id.toString();
-        
-        // Move messages from temp activeId to the new real ID
-        setMessages(prev => {
-          const newMsgs = { ...prev };
-          newMsgs[newConvId] = newMsgs[activeId];
-          delete newMsgs[activeId];
-          return newMsgs;
-        });
-
-        setActiveId(newConvId);
-        
-        // Refresh conversations to get the title etc.
-        const updatedConvs = await chatService.getConversations();
-        setConversations(updatedConvs);
-      }
+            setActiveId(newConvId);
+            
+            const updatedConvs = await chatService.getConversations();
+            setConversations(updatedConvs);
+          }
+        },
+        onError: (error) => {
+          console.error('Streaming error:', error);
+          setMessages(prev => {
+            const currentMessages = prev[activeId] || [];
+            return {
+              ...prev,
+              [activeId]: currentMessages.map(msg => 
+                msg.id === assistantMessageId 
+                  ? { ...msg, content: msg.content + '\n\n[Error: ' + error + ']' }
+                  : msg
+              )
+            };
+          });
+          setIsLoading(false);
+        }
+      });
     } catch (err) {
       console.error('Failed to send message:', err);
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: 'Sorry, I encountered an error while processing your request. Please check your connection and try again.',
-        timestamp: Date.now(),
-      };
-      setMessages(prev => ({
-        ...prev,
-        [activeId]: [...(prev[activeId] || []), errorMessage]
-      }));
-    } finally {
       setIsLoading(false);
     }
   };
