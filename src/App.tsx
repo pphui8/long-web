@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { subscribeToTokenUpdates } from './api';
+import authService from './authService';
 import { Login } from './components/Login';
 import { ChatLayout } from './components/Chat';
 import './index.css';
@@ -10,10 +11,8 @@ export default function App() {
   const [username, setUsername] = useState('User');
 
   useEffect(() => {
-    // Initial sync with token from api.ts (which was restored from localStorage)
-    subscribeToTokenUpdates((token) => {
+    const unsubscribe = subscribeToTokenUpdates((token) => {
       setAccessToken(token);
-      setIsInitializing(false);
       
       if (token) {
         try {
@@ -24,8 +23,18 @@ export default function App() {
           console.error('Failed to parse token for username', e);
           setUsername('User');
         }
+      } else {
+        setUsername('User');
       }
     });
+
+    authService.refresh().catch(() => {
+      setAccessToken(null);
+    }).finally(() => {
+      setIsInitializing(false);
+    });
+
+    return unsubscribe;
   }, []);
 
   if (isInitializing) {

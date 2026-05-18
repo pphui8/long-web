@@ -1,4 +1,4 @@
-import api, { setAccessToken, subscribeToTokenUpdates, TOKEN_KEY } from './api';
+import api, { extractAccessToken, refreshAccessToken, setAccessToken, subscribeToTokenUpdates } from './api';
 
 export interface AuthPayload {
   username: string;
@@ -21,18 +21,12 @@ class AuthService {
       }
     });
 
-    // Resume session if token exists
-    const initialToken = localStorage.getItem(TOKEN_KEY);
-    if (initialToken) {
-      this.isAutoRefreshEnabled = true;
-      this.scheduleRefresh(initialToken);
-    }
   }
 
   async login(username: string, password: string): Promise<string | null> {
     try {
       const res = await api.post('/login', { username, password });
-      const token = res.data.access_token || res.data.token;
+      const token = extractAccessToken(res.data);
       if (token) {
         this.isAutoRefreshEnabled = true;
         this.handleNewToken(token);
@@ -49,11 +43,10 @@ class AuthService {
 
   async refresh(): Promise<string | null> {
     try {
-      const res = await api.post('/refresh');
-      const token = res.data.access_token || res.data.token;
+      const token = await refreshAccessToken();
       if (token) {
         this.isAutoRefreshEnabled = true;
-        this.handleNewToken(token);
+        this.scheduleRefresh(token);
         return token;
       }
       throw new Error('No token in refresh response');

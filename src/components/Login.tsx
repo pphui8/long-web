@@ -17,12 +17,10 @@ export const Login: React.FC = () => {
       if (!token) {
         setError('Login failed: No token received');
       }
-      // Note: No need to call onLoginSuccess because authService.login 
-      // already triggers the state update via api.ts subscribers.
     } catch (err: unknown) {
       let message = 'An error occurred during login';
       if (axios.isAxiosError(err)) {
-        message = err.response?.data?.error || err.message;
+        message = err.response?.data?.error?.message || err.message;
       } else if (err instanceof Error) {
         message = err.message;
       }

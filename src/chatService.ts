@@ -1,4 +1,4 @@
-import api, { TOKEN_KEY } from './api';
+import api, { getAccessToken, refreshAccessToken } from './api';
 import type { Message, Conversation } from './types';
 
 export interface LLMRequest {
@@ -17,15 +17,92 @@ export interface StreamCallbacks {
   onError: (error: string) => void;
 }
 
+interface BackendConversation {
+  id: number;
+  username: string;
+  title: string;
+  summary: string;
+  created_at: string;
+  last_message_at: string;
+}
+
+interface BackendMessage {
+  id: number;
+  conversation_id: number;
+  role: Message['role'];
+  content: string;
+  token_count: number;
+  created_at: string;
+}
+
+interface SseEvent {
+  event: string;
+  data: string;
+}
+
+const toConversation = (conversation: BackendConversation): Conversation => ({
+  id: String(conversation.id),
+  title: conversation.title || 'Untitled conversation',
+  updatedAt: new Date(conversation.last_message_at || conversation.created_at).getTime(),
+});
+
+const toMessage = (message: BackendMessage): Message => ({
+  id: String(message.id),
+  role: message.role,
+  content: message.content,
+  timestamp: new Date(message.created_at).getTime(),
+});
+
+const getApiUrl = (path: string) => {
+  const baseURL = api.defaults.baseURL || '';
+  return `${baseURL}${path}`;
+};
+
+const parseSseEvent = (rawEvent: string): SseEvent | null => {
+  const lines = rawEvent.split('\n');
+  let event = 'message';
+  const data: string[] = [];
+
+  for (const line of lines) {
+    if (line.startsWith('event:')) {
+      event = line.slice('event:'.length).trim();
+    } else if (line.startsWith('data:')) {
+      data.push(line.slice('data:'.length).replace(/^ /, ''));
+    }
+  }
+
+  if (data.length === 0 && event === 'message') {
+    return null;
+  }
+
+  return { event, data: data.join('\n') };
+};
+
+const parseErrorMessage = (payload: unknown, fallback: string) => {
+  if (
+    payload &&
+    typeof payload === 'object' &&
+    'error' in payload &&
+    payload.error &&
+    typeof payload.error === 'object' &&
+    'message' in payload.error &&
+    typeof payload.error.message === 'string'
+  ) {
+    return payload.error.message;
+  }
+
+  return fallback;
+};
+
 const chatService = {
   async getConversations(): Promise<Conversation[]> {
-    const response = await api.get<Conversation[]>('/conversations');
-    return response.data;
+    const response = await api.get<BackendConversation[]>('/conversations');
+    return response.data.map(toConversation);
   },
 
   async getMessages(conversationId: string | number): Promise<Message[]> {
-    const response = await api.get<Message[]>(`/conversations/${conversationId}/messages`);
-    return response.data;
+    const response = await api.get<BackendMessage[]>(`/conversations/${conversationId}/messages`);
+    return response.data.map(toMessage);
   },
 
   async sendMessage(prompt: string, conversationId?: string | number): Promise<LLMResponse> {
@@ -43,20 +120,31 @@ const chatService = {
       conversation_id: conversationId && !isNaN(Number(conversationId)) ? Number(conversationId) : undefined,
     };
 
-    const token = localStorage.getItem(TOKEN_KEY);
-    
     try {
-      const response = await fetch('/api/gemini', {
+      let token = getAccessToken();
+      if (!token) {
+        token = await refreshAccessToken();
+      }
+
+      const response = await fetch(getApiUrl('/gemini'), {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(data),
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        let message = 'Gemini request failed';
+        try {
+          const payload = await response.json();
+          message = parseErrorMessage(payload, message);
+        } catch {
+          message = `Gemini request failed with status ${response.status}`;
+        }
+        throw new Error(message);
       }
 
       const reader = response.body?.getReader();
@@ -71,33 +159,27 @@ const chatService = {
         const { done, value } = await reader.read();
         if (done) break;
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
+        buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n');
 
-        let currentEvent = '';
+        let boundaryIndex;
+        while ((boundaryIndex = buffer.indexOf('\n\n')) !== -1) {
+          const rawEvent = buffer.slice(0, boundaryIndex);
+          buffer = buffer.slice(boundaryIndex + 2);
 
-        for (const line of lines) {
-          if (line.startsWith('event: ')) {
-            currentEvent = line.slice(7);
-          } else if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            if (currentEvent === 'done') {
-              try {
-                const doneData = JSON.parse(data);
-                if (doneData.conversation_id) {
-                  callbacks.onDone(doneData.conversation_id);
-                }
-              } catch (e) {
-                console.error('Failed to parse done event data', e);
-              }
-            } else if (currentEvent === 'error') {
-              callbacks.onError(data);
-            } else {
-              callbacks.onChunk(data);
+          const event = parseSseEvent(rawEvent);
+          if (!event) continue;
+
+          if (event.event === 'done') {
+            const payload = JSON.parse(event.data);
+            const newConversationId = payload.data?.conversation_id;
+            if (newConversationId) {
+              callbacks.onDone(newConversationId);
             }
-          } else if (line === '') {
-            currentEvent = '';
+          } else if (event.event === 'error') {
+            const payload = JSON.parse(event.data);
+            callbacks.onError(parseErrorMessage(payload, 'Stream error'));
+          } else {
+            callbacks.onChunk(event.data);
           }
         }
       }
