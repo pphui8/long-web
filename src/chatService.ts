@@ -35,6 +35,10 @@ interface BackendMessage {
   created_at: string;
 }
 
+type ApiDataResponse<T> = T | {
+  data: T;
+};
+
 interface SseEvent {
   event: string;
   data: string;
@@ -94,15 +98,27 @@ const parseErrorMessage = (payload: unknown, fallback: string) => {
   return fallback;
 };
 
+const unwrapData = <T>(payload: ApiDataResponse<T>): T => {
+  if (
+    payload &&
+    typeof payload === 'object' &&
+    'data' in payload
+  ) {
+    return payload.data;
+  }
+
+  return payload;
+};
+
 const chatService = {
   async getConversations(): Promise<Conversation[]> {
-    const response = await api.get<BackendConversation[]>('/conversations');
-    return response.data.map(toConversation);
+    const response = await api.get<ApiDataResponse<BackendConversation[]>>('/conversations');
+    return unwrapData(response.data).map(toConversation);
   },
 
   async getMessages(conversationId: string | number): Promise<Message[]> {
-    const response = await api.get<BackendMessage[]>(`/conversations/${conversationId}/messages`);
-    return response.data.map(toMessage);
+    const response = await api.get<ApiDataResponse<BackendMessage[]>>(`/conversations/${conversationId}/messages`);
+    return unwrapData(response.data).map(toMessage);
   },
 
   async sendMessage(prompt: string, conversationId?: string | number): Promise<LLMResponse> {
