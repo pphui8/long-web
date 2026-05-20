@@ -54,7 +54,18 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({ username }) => {
   const activeMessages = activeId ? (messages[activeId] || []) : [];
 
   const handleSendMessage = async (content: string) => {
-    if (!activeId) return;
+    const conversationId = activeId || `new-${Date.now()}`;
+
+    if (!activeId) {
+      const newConv: Conversation = {
+        id: conversationId,
+        title: 'New Conversation',
+        updatedAt: Date.now(),
+      };
+      setConversations(prev => [newConv, ...prev]);
+      setActiveId(conversationId);
+      setMessages(prev => ({ ...prev, [conversationId]: [] }));
+    }
 
     const tempUserId = Date.now().toString();
     const newUserMessage: Message = {
@@ -66,7 +77,7 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({ username }) => {
 
     setMessages(prev => ({
       ...prev,
-      [activeId]: [...(prev[activeId] || []), newUserMessage]
+      [conversationId]: [...(prev[conversationId] || []), newUserMessage]
     }));
 
     setIsLoading(true);
@@ -81,19 +92,19 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({ username }) => {
 
     setMessages(prev => ({
       ...prev,
-      [activeId]: [...(prev[activeId] || []), initialAssistantMessage]
+      [conversationId]: [...(prev[conversationId] || []), initialAssistantMessage]
     }));
 
     try {
-      const cid = !isNaN(Number(activeId)) ? activeId : undefined;
+      const cid = !isNaN(Number(conversationId)) ? conversationId : undefined;
       
       await chatService.streamMessage(content, cid, {
         onChunk: (chunk) => {
           setMessages(prev => {
-            const currentMessages = prev[activeId] || [];
+            const currentMessages = prev[conversationId] || [];
             return {
               ...prev,
-              [activeId]: currentMessages.map(msg => 
+              [conversationId]: currentMessages.map(msg => 
                 msg.id === assistantMessageId 
                   ? { ...msg, content: msg.content + chunk }
                   : msg
@@ -109,8 +120,8 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({ username }) => {
             
             setMessages(prev => {
               const newMsgs = { ...prev };
-              newMsgs[newConvId] = newMsgs[activeId];
-              delete newMsgs[activeId];
+              newMsgs[newConvId] = newMsgs[conversationId];
+              delete newMsgs[conversationId];
               return newMsgs;
             });
 
@@ -123,10 +134,10 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({ username }) => {
         onError: (error) => {
           console.error('Streaming error:', error);
           setMessages(prev => {
-            const currentMessages = prev[activeId] || [];
+            const currentMessages = prev[conversationId] || [];
             return {
               ...prev,
-              [activeId]: currentMessages.map(msg => 
+              [conversationId]: currentMessages.map(msg => 
                 msg.id === assistantMessageId 
                   ? { ...msg, content: msg.content + '\n\n[Error: ' + error + ']' }
                   : msg
