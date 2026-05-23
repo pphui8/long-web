@@ -5,42 +5,50 @@ interface MessageItemProps {
   message: Message;
 }
 
-const renderInlineMarkdown = (text: string): React.ReactNode[] => {
-  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g);
+const renderInlineMarkdown = (text: string, linkClassName: string): React.ReactNode[] => {
+  const nodes: React.ReactNode[] = [];
+  const inlinePattern = /(\*\*([^*]+)\*\*|`([^`]+)`|\[([^\]]+)\]\((https?:\/\/[^)\s]+)\))/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
 
-  return parts.map((part, index) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={index}>{part.slice(2, -2)}</strong>;
+  while ((match = inlinePattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      nodes.push(text.slice(lastIndex, match.index));
     }
 
-    if (part.startsWith('`') && part.endsWith('`')) {
-      return (
-        <code key={index} className="rounded bg-slate-200 px-1 py-0.5 font-mono text-[0.92em]">
-          {part.slice(1, -1)}
+    if (match[2]) {
+      nodes.push(<strong key={nodes.length}>{match[2]}</strong>);
+    } else if (match[3]) {
+      nodes.push(
+        <code key={nodes.length} className="rounded bg-slate-200 px-1 py-0.5 font-mono text-[0.92em] break-words">
+          {match[3]}
         </code>
       );
-    }
-
-    const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
-    if (linkMatch) {
-      return (
+    } else if (match[4] && match[5]) {
+      nodes.push(
         <a
-          key={index}
-          href={linkMatch[2]}
-          className="font-medium text-primary underline underline-offset-2"
+          key={nodes.length}
+          href={match[5]}
+          className={linkClassName}
           target="_blank"
           rel="noreferrer"
         >
-          {linkMatch[1]}
+          {match[4]}
         </a>
       );
     }
 
-    return part;
-  });
+    lastIndex = inlinePattern.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(text.slice(lastIndex));
+  }
+
+  return nodes;
 };
 
-const renderMarkdown = (content: string) => {
+const renderMarkdown = (content: string, linkClassName: string) => {
   const blocks: React.ReactNode[] = [];
   const lines = content.split('\n');
 
@@ -57,7 +65,7 @@ const renderMarkdown = (content: string) => {
       }
 
       blocks.push(
-        <pre key={blocks.length} className="my-3 overflow-x-auto rounded-lg bg-slate-900 p-3 text-sm leading-6 text-slate-100">
+        <pre key={blocks.length} className="my-3 max-w-full overflow-x-auto rounded-lg bg-slate-900 p-3 text-sm leading-6 text-slate-100">
           <code>{codeLines.join('\n')}</code>
         </pre>
       );
@@ -73,7 +81,7 @@ const renderMarkdown = (content: string) => {
       const levelClass = heading[1].length === 1 ? 'text-lg' : heading[1].length === 2 ? 'text-base' : 'text-sm';
       blocks.push(
         <div key={blocks.length} className={`mt-3 first:mt-0 font-semibold ${levelClass}`}>
-          {renderInlineMarkdown(heading[2])}
+          {renderInlineMarkdown(heading[2], linkClassName)}
         </div>
       );
       continue;
@@ -97,7 +105,7 @@ const renderMarkdown = (content: string) => {
       blocks.push(
         <ListTag key={blocks.length} className={`my-2 space-y-1 pl-5 ${orderedList ? 'list-decimal' : 'list-disc'}`}>
           {listItems.map((item, itemIndex) => (
-            <li key={itemIndex}>{renderInlineMarkdown(item)}</li>
+            <li key={itemIndex}>{renderInlineMarkdown(item, linkClassName)}</li>
           ))}
         </ListTag>
       );
@@ -107,7 +115,7 @@ const renderMarkdown = (content: string) => {
     if (line.startsWith('> ')) {
       blocks.push(
         <blockquote key={blocks.length} className="my-2 border-l-4 border-slate-300 pl-3 text-slate-600">
-          {renderInlineMarkdown(line.slice(2))}
+          {renderInlineMarkdown(line.slice(2), linkClassName)}
         </blockquote>
       );
       continue;
@@ -128,7 +136,7 @@ const renderMarkdown = (content: string) => {
 
     blocks.push(
       <p key={blocks.length} className="my-2 first:mt-0 last:mb-0">
-        {renderInlineMarkdown(paragraphLines.join(' '))}
+        {renderInlineMarkdown(paragraphLines.join(' '), linkClassName)}
       </p>
     );
   }
@@ -138,16 +146,19 @@ const renderMarkdown = (content: string) => {
 
 export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
   const isAssistant = message.role === 'assistant';
+  const linkClassName = isAssistant
+    ? 'font-medium text-primary underline underline-offset-2 break-words'
+    : 'font-medium text-white underline underline-offset-2 break-words';
   
   return (
-    <div className={`flex gap-4 max-w-[85%] ${isAssistant ? '' : 'flex-row-reverse self-end'}`}>
+    <div className={`flex max-w-[85%] min-w-0 gap-3 md:gap-4 ${isAssistant ? '' : 'flex-row-reverse self-end'}`}>
       <div className={`
         w-9 h-9 rounded-full flex items-center justify-center shrink-0 font-bold text-sm
         ${isAssistant ? 'bg-slate-200 text-sidebar-bg' : 'bg-primary text-white'}
       `}>
         {isAssistant ? 'AI' : 'U'}
       </div>
-      <div className={`flex flex-col gap-1 ${isAssistant ? '' : 'items-end'}`}>
+      <div className={`flex min-w-0 flex-col gap-1 ${isAssistant ? '' : 'items-end'}`}>
         <div className={`flex items-center gap-2 text-xs text-text-muted ${isAssistant ? '' : 'flex-row-reverse'}`}>
           <span className="font-semibold text-slate-700">{isAssistant ? 'Assistant' : 'You'}</span>
           <span>
@@ -155,12 +166,12 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
           </span>
         </div>
         <div className={`
-          px-4 py-3 rounded-2xl text-[15px] leading-relaxed break-words
+          max-w-full px-4 py-3 rounded-2xl text-[15px] leading-relaxed break-words [overflow-wrap:anywhere]
           ${isAssistant 
             ? 'bg-message-ai-bg text-message-ai-text rounded-tl-none border border-slate-100' 
             : 'bg-message-user-bg text-message-user-text rounded-tr-none shadow-sm'}
         `}>
-          {isAssistant ? renderMarkdown(message.content) : message.content}
+          {renderMarkdown(message.content, linkClassName)}
         </div>
       </div>
     </div>

@@ -228,7 +228,7 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({ username }) => {
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />
-      <main className="flex-1 flex flex-col bg-white min-w-0">
+      <main className="flex-1 flex flex-col bg-white min-w-0 min-h-0">
         <ChatWindow
           messages={activeMessages}
           onSendMessage={handleSendMessage}

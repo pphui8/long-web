@@ -37,18 +37,18 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <header className="px-6 py-4 border-b border-border-color flex items-center gap-4 bg-white/80 backdrop-blur-md sticky top-0 z-10">
+    <div className="flex flex-col h-full min-h-0">
+      <header className="shrink-0 px-4 py-3 md:px-6 md:py-4 border-b border-border-color flex items-center gap-4 bg-white/80 backdrop-blur-md z-10">
         <button 
           className="md:hidden p-2 text-text-main text-2xl cursor-pointer hover:bg-slate-100 rounded-md transition-colors" 
           onClick={onToggleSidebar}
         >
           ☰
         </button>
-        <h2 className="text-lg font-semibold truncate text-slate-800">{title}</h2>
+        <h2 className="min-w-0 flex-1 text-lg font-semibold truncate text-slate-800">{title}</h2>
       </header>
       
-      <div className="flex-1 overflow-y-auto p-6 md:p-8 flex flex-col gap-6">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 md:p-8 flex flex-col gap-4 md:gap-6">
         {messages.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-text-muted text-center space-y-2">
             <h3 className="text-xl font-medium text-slate-600">Start a new conversation</h3>
@@ -65,10 +65,10 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         <div ref={messagesEndRef} />
       </div>
       
-      <div className="p-6 md:p-8 border-t border-border-color bg-white">
-        <form onSubmit={handleSubmit} className="flex gap-4 max-w-4xl mx-auto">
+      <div className="shrink-0 p-4 md:p-8 border-t border-border-color bg-white">
+        <form onSubmit={handleSubmit} className="flex min-w-0 gap-2 md:gap-4 max-w-4xl mx-auto">
           <textarea
-            className="flex-1 px-4 py-3 border border-border-color rounded-xl resize-none text-base focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 h-14 max-h-48 transition-all"
+            className="min-w-0 flex-1 px-4 py-3 border border-border-color rounded-xl resize-none text-base focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 h-14 max-h-48 transition-all"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Type your message..."
@@ -82,7 +82,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           <button 
             type="submit" 
             disabled={!input.trim() || isLoading}
-            className="px-8 bg-primary hover:bg-primary-hover text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm active:scale-95"
+            className="shrink-0 px-5 md:px-8 bg-primary hover:bg-primary-hover text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm active:scale-95"
           >
             Send
           </button>
