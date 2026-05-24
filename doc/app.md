@@ -23,7 +23,7 @@ The `long-web` project is a specialized LLM (Large Language Model) chat platform
 Unlike general-purpose chat bots, this application is optimized for specific functions or domains, allowing for more relevant and specialized AI responses.
 
 ### LLM Integration
-The frontend communicates with a backend API (configured to `llm.pphui8.com/api`) which serves as a proxy to powerful Large Language Models. This architecture abstracts the complexity of model management and provides a consistent interface for the web client.
+The frontend communicates with a backend API (configured to `llm.pphui8.com/api`) which serves as a proxy to powerful Large Language Models. Chat requests stream through `POST /chat` and include a required `model` field. The frontend currently sends `gemini` by default until the model selector is implemented.
 
 ### Secure Session Management
 - **Automatic Token Refresh:** To support long-running chat sessions, the application proactively refreshes authentication tokens before they expire.

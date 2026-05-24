@@ -1,7 +1,12 @@
 import api, { getAccessToken, refreshAccessToken } from './api';
 import type { Message, Conversation } from './types';
 
+export type ChatModel = 'gemini';
+
+export const DEFAULT_CHAT_MODEL: ChatModel = 'gemini';
+
 export interface LLMRequest {
+  model: ChatModel;
   conversation_id?: number;
   prompt: string;
 }
@@ -121,17 +126,28 @@ const chatService = {
     return unwrapData(response.data).map(toMessage);
   },
 
-  async sendMessage(prompt: string, conversationId?: string | number): Promise<LLMResponse> {
+  async sendMessage(
+    prompt: string,
+    conversationId?: string | number,
+    model: ChatModel = DEFAULT_CHAT_MODEL,
+  ): Promise<LLMResponse> {
     const data: LLMRequest = {
+      model,
       prompt,
       conversation_id: conversationId ? Number(conversationId) : undefined,
     };
-    const response = await api.post<LLMResponse>('/gemini', data);
+    const response = await api.post<LLMResponse>('/chat', data);
     return response.data;
   },
 
-  async streamMessage(prompt: string, conversationId: string | number | undefined, callbacks: StreamCallbacks): Promise<void> {
+  async streamMessage(
+    prompt: string,
+    conversationId: string | number | undefined,
+    callbacks: StreamCallbacks,
+    model: ChatModel = DEFAULT_CHAT_MODEL,
+  ): Promise<void> {
     const data: LLMRequest = {
+      model,
       prompt,
       conversation_id: conversationId && !isNaN(Number(conversationId)) ? Number(conversationId) : undefined,
     };
@@ -142,7 +158,7 @@ const chatService = {
         token = await refreshAccessToken();
       }
 
-      const response = await fetch(getApiUrl('/gemini'), {
+      const response = await fetch(getApiUrl('/chat'), {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -153,12 +169,12 @@ const chatService = {
       });
 
       if (!response.ok) {
-        let message = 'Gemini request failed';
+        let message = 'Chat request failed';
         try {
           const payload = await response.json();
           message = parseErrorMessage(payload, message);
         } catch {
-          message = `Gemini request failed with status ${response.status}`;
+          message = `Chat request failed with status ${response.status}`;
         }
         throw new Error(message);
       }
