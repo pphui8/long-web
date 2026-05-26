@@ -48,9 +48,39 @@ const renderInlineMarkdown = (text: string, linkClassName: string): React.ReactN
   return nodes;
 };
 
+const normalizeMarkdownLines = (content: string) => {
+  return content.split('\n').flatMap((line) => {
+    const trimmed = line.trim();
+
+    if (trimmed.startsWith('|') && trimmed.endsWith('|') && trimmed.includes('| |')) {
+      return line.replace(/\|\s+\|/g, '|\n|').split('\n');
+    }
+
+    return [line];
+  });
+};
+
+const isHorizontalRule = (line: string) => /^-{3,}$/.test(line.trim());
+
+const isTableRow = (line: string) => {
+  const trimmed = line.trim();
+  return trimmed.startsWith('|') && trimmed.endsWith('|') && trimmed.includes('|', 1);
+};
+
+const parseTableCells = (line: string) =>
+  line
+    .trim()
+    .replace(/^\|/, '')
+    .replace(/\|$/, '')
+    .split('|')
+    .map((cell) => cell.trim());
+
+const isTableDivider = (line: string) =>
+  parseTableCells(line).every((cell) => /^:?-{3,}:?$/.test(cell));
+
 const renderMarkdown = (content: string, linkClassName: string) => {
   const blocks: React.ReactNode[] = [];
-  const lines = content.split('\n');
+  const lines = normalizeMarkdownLines(content);
 
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i];
@@ -73,6 +103,60 @@ const renderMarkdown = (content: string, linkClassName: string) => {
     }
 
     if (!line.trim()) {
+      continue;
+    }
+
+    if (isHorizontalRule(line)) {
+      blocks.push(<hr key={blocks.length} className="my-4 border-slate-300" />);
+      continue;
+    }
+
+    if (isTableRow(line)) {
+      const tableLines = [line];
+
+      while (i + 1 < lines.length && isTableRow(lines[i + 1])) {
+        i += 1;
+        tableLines.push(lines[i]);
+      }
+
+      if (tableLines.length >= 2 && isTableDivider(tableLines[1])) {
+        const headers = parseTableCells(tableLines[0]);
+        const rows = tableLines.slice(2).map(parseTableCells);
+
+        blocks.push(
+          <div key={blocks.length} className="my-3 max-w-full overflow-x-auto">
+            <table className="w-full min-w-max border-collapse text-left text-sm">
+              <thead>
+                <tr>
+                  {headers.map((header, headerIndex) => (
+                    <th key={headerIndex} className="border border-slate-300 bg-slate-200 px-3 py-2 font-semibold">
+                      {renderInlineMarkdown(header, linkClassName)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, rowIndex) => (
+                  <tr key={rowIndex}>
+                    {headers.map((_, cellIndex) => (
+                      <td key={cellIndex} className="border border-slate-300 bg-white px-3 py-2 align-top">
+                        {renderInlineMarkdown(row[cellIndex] ?? '', linkClassName)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      } else {
+        blocks.push(
+          <p key={blocks.length} className="my-2 first:mt-0 last:mb-0">
+            {renderInlineMarkdown(tableLines.join(' '), linkClassName)}
+          </p>
+        );
+      }
+
       continue;
     }
 
@@ -126,6 +210,8 @@ const renderMarkdown = (content: string, linkClassName: string) => {
       i + 1 < lines.length &&
       lines[i + 1].trim() &&
       !lines[i + 1].startsWith('```') &&
+      !isHorizontalRule(lines[i + 1]) &&
+      !isTableRow(lines[i + 1]) &&
       !/^(#{1,3})\s+/.test(lines[i + 1]) &&
       !/^(\d+\.|[-*])\s+/.test(lines[i + 1]) &&
       !lines[i + 1].startsWith('> ')
