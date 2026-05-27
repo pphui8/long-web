@@ -75,6 +75,10 @@ jobs:
             
             # Pull the latest image
             docker pull $IMAGE_PATH:latest
+
+            # Keep nginx logs on the host so they can be checked without entering the container
+            LOG_DIR="$HOME/log/long-web"
+            mkdir -p "$LOG_DIR"
             
             # Stop and remove existing container if it exists
             docker stop long-web || true
@@ -85,4 +89,5 @@ jobs:
               --name long-web \
               --restart always \
               -p 9000:9000 \
+              -v "$LOG_DIR:/app/log/long-web" \
               $IMAGE_PATH:latest
