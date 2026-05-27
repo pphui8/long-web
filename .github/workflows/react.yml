@@ -78,7 +78,8 @@ jobs:
 
             # Keep nginx logs on the host so they can be checked without entering the container
             LOG_DIR="/app/log/long-web"
-            mkdir -p "$LOG_DIR"
+            sudo mkdir -p "$LOG_DIR"
+            sudo chown -R "$(id -u):$(id -g)" "$LOG_DIR"
             
             # Stop and remove existing container if it exists
             docker stop long-web || true
