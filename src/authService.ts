@@ -1,4 +1,6 @@
-import api, { extractAccessToken, refreshAccessToken, setAccessToken, subscribeToTokenUpdates } from './api';
+import api, { extractAccessToken, refreshAccessToken, revokeRefreshSession, setAccessToken, subscribeToTokenUpdates } from './api';
+
+const EXPLICIT_LOGOUT_KEY = 'long-web:explicit-logout';
 
 export interface AuthPayload {
   username: string;
@@ -28,6 +30,7 @@ class AuthService {
       const res = await api.post('/login', { username, password });
       const token = extractAccessToken(res.data);
       if (token) {
+        this.clearExplicitLogout();
         this.isAutoRefreshEnabled = true;
         this.handleNewToken(token);
         return token;
@@ -42,6 +45,11 @@ class AuthService {
   }
 
   async refresh(): Promise<string | null> {
+    if (this.isExplicitlyLoggedOut()) {
+      setAccessToken(null);
+      return null;
+    }
+
     try {
       const token = await refreshAccessToken();
       if (token) {
@@ -58,11 +66,17 @@ class AuthService {
     }
   }
 
-  logout() {
+  async logout() {
+    this.markExplicitLogout();
     this.isAutoRefreshEnabled = false;
     this.stopAutoRefresh();
     setAccessToken(null);
-    // Optionally call a logout endpoint if it exists
+
+    try {
+      await revokeRefreshSession();
+    } catch (error) {
+      console.warn('Logout endpoint did not complete. Keeping local session logged out.', error);
+    }
   }
 
   private handleNewToken(token: string) {
@@ -125,6 +139,30 @@ class AuthService {
     } catch (e) {
       console.error('Failed to parse JWT', e);
       return null;
+    }
+  }
+
+  private isExplicitlyLoggedOut() {
+    try {
+      return window.localStorage.getItem(EXPLICIT_LOGOUT_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  }
+
+  private markExplicitLogout() {
+    try {
+      window.localStorage.setItem(EXPLICIT_LOGOUT_KEY, 'true');
+    } catch {
+      // Ignore storage failures; server-side logout still prevents refresh where supported.
+    }
+  }
+
+  private clearExplicitLogout() {
+    try {
+      window.localStorage.removeItem(EXPLICIT_LOGOUT_KEY);
+    } catch {
+      // Ignore storage failures; the in-memory token still reflects this login.
     }
   }
 }

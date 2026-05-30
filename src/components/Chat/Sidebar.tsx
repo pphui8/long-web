@@ -95,7 +95,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
         <button 
           className="w-full py-2 bg-transparent border border-red-500 text-red-500 rounded-md text-sm hover:bg-red-500 hover:text-white transition-all cursor-pointer"
-          onClick={() => authService.logout()}
+          onClick={() => void authService.logout()}
         >
           Logout
         </button>

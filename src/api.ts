@@ -3,6 +3,7 @@ import axios, { AxiosError, type AxiosRequestConfig, type InternalAxiosRequestCo
 let accessToken: string | null = null;
 const subscribers: ((token: string | null) => void)[] = [];
 let refreshPromise: Promise<string | null> | null = null;
+let tokenVersion = 0;
 
 type AuthRequestConfig = AxiosRequestConfig & {
   skipAuthRefresh?: boolean;
@@ -38,6 +39,7 @@ export const extractAccessToken = (payload: unknown): string | null => {
 };
 
 export const setAccessToken = (token: string | null) => {
+  tokenVersion += 1;
   accessToken = token;
   subscribers.forEach((callback) => callback(token));
 };
@@ -58,12 +60,17 @@ export const subscribeToTokenUpdates = (callback: (token: string | null) => void
 
 export const refreshAccessToken = async (): Promise<string | null> => {
   if (!refreshPromise) {
+    const refreshTokenVersion = tokenVersion;
+
     refreshPromise = api
       .post('/refresh', undefined, { skipAuthRefresh: true } as AuthRequestConfig)
       .then((res) => {
         const token = extractAccessToken(res.data);
         if (!token) {
           throw new Error('No token in refresh response');
+        }
+        if (refreshTokenVersion !== tokenVersion) {
+          return null;
         }
         setAccessToken(token);
         return token;
@@ -78,6 +85,10 @@ export const refreshAccessToken = async (): Promise<string | null> => {
   }
 
   return refreshPromise;
+};
+
+export const revokeRefreshSession = async (): Promise<void> => {
+  await api.post('/logout', undefined, { skipAuthRefresh: true } as AuthRequestConfig);
 };
 
 api.interceptors.request.use(
