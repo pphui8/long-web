@@ -17,11 +17,28 @@
 
 @layer base {
   body {
-    @apply font-sans bg-slate-50 text-text-main leading-relaxed h-screen overflow-hidden;
+    @apply font-sans bg-slate-50 text-text-main leading-relaxed overflow-hidden;
+    height: 100vh;
+    height: 100dvh;
   }
   
   #root {
     @apply h-full;
+  }
+}
+
+@layer utilities {
+  .app-viewport {
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
   }
 }
 

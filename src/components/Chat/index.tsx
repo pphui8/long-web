@@ -211,7 +211,7 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({ username }) => {
   const activeTitle = conversations.find(c => c.id === activeId)?.title || 'Chat';
 
   return (
-    <div className="flex h-screen w-full relative">
+    <div className="app-viewport flex w-full relative overflow-hidden">
       {isSidebarOpen && (
         <div 
           className="md:hidden absolute inset-0 bg-black/50 z-40" 

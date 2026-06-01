@@ -38,7 +38,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <header className="shrink-0 px-4 py-3 md:px-6 md:py-4 border-b border-border-color flex items-center gap-4 bg-white/80 backdrop-blur-md z-10">
+      <header className="safe-top shrink-0 px-4 py-3 md:px-6 md:py-4 border-b border-border-color flex items-center gap-4 bg-white/80 backdrop-blur-md z-10">
         <button 
           className="md:hidden p-2 text-text-main text-2xl cursor-pointer hover:bg-slate-100 rounded-md transition-colors" 
           onClick={onToggleSidebar}
@@ -65,7 +65,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         <div ref={messagesEndRef} />
       </div>
       
-      <div className="shrink-0 p-4 md:p-8 border-t border-border-color bg-white">
+      <div className="safe-bottom shrink-0 p-4 md:p-8 border-t border-border-color bg-white">
         <form onSubmit={handleSubmit} className="flex min-w-0 gap-2 md:gap-4 max-w-4xl mx-auto">
           <textarea
             className="min-w-0 flex-1 px-4 py-3 border border-border-color rounded-xl resize-none text-base focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 h-14 max-h-48 transition-all"
@@ -87,9 +87,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             Send
           </button>
         </form>
-        <div className="text-center text-xs text-text-muted mt-4">
-          LLM responses can be inaccurate. Verify important information.
-        </div>
       </div>
     </div>
   );
