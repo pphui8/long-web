@@ -69,7 +69,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         <div ref={messagesEndRef} />
       </div>
       
-      <div className="safe-bottom shrink-0 p-4 md:p-8 border-t border-border-color bg-white">
+      <div className="shrink-0 px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-8 md:pt-8 md:pb-[calc(2rem+env(safe-area-inset-bottom))] border-t border-border-color bg-white">
         <form onSubmit={handleSubmit} className="flex min-w-0 gap-2 md:gap-4 max-w-4xl mx-auto">
           <textarea
             className="min-w-0 flex-1 px-4 py-3 border border-border-color rounded-xl resize-none text-base focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 h-14 max-h-48 transition-all"
@@ -78,6 +78,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             placeholder="Type your message..."
             onKeyDown={(e) => {
               if (e.key === 'Enter' && (e.altKey || e.metaKey)) {
+                e.preventDefault();
+                submitMessage();
+                return;
+              }
+
+              if (e.key === 'Enter' && input.endsWith('\n')) {
                 e.preventDefault();
                 submitMessage();
               }
