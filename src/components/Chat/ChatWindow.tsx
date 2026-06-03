@@ -28,12 +28,16 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     scrollToBottom();
   }, [messages]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitMessage = () => {
     if (input.trim() && !isLoading) {
       onSendMessage(input.trim());
       setInput('');
     }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    submitMessage();
   };
 
   return (
@@ -73,9 +77,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             onChange={(e) => setInput(e.target.value)}
             placeholder="Type your message..."
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
+              if (e.key === 'Enter' && (e.altKey || e.metaKey)) {
                 e.preventDefault();
-                handleSubmit(e);
+                submitMessage();
               }
             }}
           />
