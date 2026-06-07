@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import type { Message } from '../../types';
 import { MessageItem } from './MessageItem';
 
@@ -19,6 +19,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 }) => {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -27,6 +28,17 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      return;
+    }
+
+    textarea.style.height = 'auto';
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 192)}px`;
+    textarea.style.overflowY = textarea.scrollHeight > 192 ? 'auto' : 'hidden';
+  }, [input]);
 
   const submitMessage = () => {
     if (input.trim() && !isLoading) {
@@ -72,7 +84,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       <div className="shrink-0 px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-8 md:pt-8 md:pb-[calc(2rem+env(safe-area-inset-bottom))] border-t border-border-color bg-white">
         <form onSubmit={handleSubmit} className="flex min-w-0 gap-2 md:gap-4 max-w-4xl mx-auto">
           <textarea
-            className="min-w-0 flex-1 px-4 py-3 border border-border-color rounded-xl resize-none text-base focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 h-14 max-h-48 transition-all"
+            ref={textareaRef}
+            className="min-w-0 flex-1 px-4 py-3 border border-border-color rounded-xl resize-none text-base focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 min-h-14 max-h-48 overflow-hidden transition-all"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Type your message..."
