@@ -7,7 +7,7 @@ React front-end for the `long` project.
 - Vite
 - Dockerized (Nginx)
 - GitHub Actions CI/CD to same server as `long`
-
+ 
 ## Setup
 1. Clone the repository.
 2. Install dependencies: `npm install`
